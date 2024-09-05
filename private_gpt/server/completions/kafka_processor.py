@@ -12,7 +12,7 @@ from private_gpt.server.chat.chat_router import ChatBody, chat_completion
 import json
 
 # Kafka configuration variables
-KAFKA_ADDRESS = 'localhost'
+KAFKA_ADDRESS = '192.168.88.176'
 KAFKA_PORT = 9002
 
 class CompletionsBody(BaseModel):
