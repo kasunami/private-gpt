@@ -90,4 +90,10 @@ def prompt_completion(
         context_filter=body.context_filter,
     )
     print(f"!!REQUEST!! :: {request}")
+    # Print relevant request attributes
+    print("Request Details:")
+    print(f"  - Headers: {request.headers}")
+    print(f"  - Query Params: {request.query_params}")
+    print(f"  - Path Params: {request.path_params}")
+
     return chat_completion(request, chat_body)
