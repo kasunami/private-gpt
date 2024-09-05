@@ -13,7 +13,7 @@ import json
 
 # Kafka configuration variables
 KAFKA_ADDRESS = '192.168.88.176'
-KAFKA_PORT = 9002
+KAFKA_PORT = 9092  # Updated port to match your Kafka setup
 
 class CompletionsBody(BaseModel):
     prompt: str
@@ -70,44 +70,50 @@ def process_message(message_value: str) -> str:  # Return type is now str (JSON 
             "location": "process_message - Parsing input message"
         })
 
-def consume_messages(consumer: KafkaConsumer, producer: KafkaProducer, output_topic: str):
-    for msg in consumer:  # Iterate directly over the consumer
-        if msg.error():
-            print(f"Consumer error: {msg.error()}")
-            continue
-        print(f"Received message: {msg.value.decode('utf-8')}")
+class KafkaProcessor:
+    def __init__(self, kafka_address, kafka_port, input_topic, output_topic):
+        self.bootstrap_servers = f"{kafka_address}:{kafka_port}"
 
-        completion_response = process_message(msg.value.decode('utf-8'))
-        producer.send(output_topic, value=completion_response.encode('utf-8'))  # Encode the JSON string
-        producer.flush()
+        self.consumer_config = {
+            'bootstrap_servers': self.bootstrap_servers,
+            'group_id': 'completions-group',
+            'auto_offset_reset': 'earliest',
+            'enable_auto_commit': False  # Adjust if needed
+        }
 
-def main():
-    bootstrap_servers = f"{KAFKA_ADDRESS}:{KAFKA_PORT}"
+        self.producer_config = {
+            'bootstrap_servers': self.bootstrap_servers
+        }
 
-    consumer_config = {
-        'bootstrap_servers': bootstrap_servers,
-        'group_id': 'completions-group',
-        'auto_offset_reset': 'earliest',
-        'enable_auto_commit': False  # Adjust if needed
-    }
+        self.input_topic = input_topic
+        self.output_topic = output_topic
 
-    producer_config = {
-        'bootstrap_servers': bootstrap_servers
-    }
+        self.consumer = KafkaConsumer(self.input_topic, **self.consumer_config)
+        self.producer = KafkaProducer(**self.producer_config)
 
-    input_topic = 'prompt_request'
-    output_topic = 'prompt_response'
+    def consume_messages(self):
+        for msg in self.consumer:
+            if msg.error():
+                print(f"Consumer error: {msg.error()}")
+                continue
+            print(f"Received message: {msg.value.decode('utf-8')}")
 
-    consumer = KafkaConsumer(input_topic, **consumer_config)
-    producer = KafkaProducer(**producer_config)
+            completion_response = process_message(msg.value.decode('utf-8'))
+            self.producer.send(self.output_topic, value=completion_response.encode('utf-8'))
+            self.producer.flush()
 
-    try:
-        consume_messages(consumer, producer, output_topic)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        consumer.close()
+    def start(self):
+        try:
+            self.consume_messages()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            self.consumer.close()
 
-
-if __name__ == "__main__":
-    main()
+# Create a default instance of KafkaProcessor
+kafka_processor = KafkaProcessor(
+    kafka_address=KAFKA_ADDRESS,
+    kafka_port=KAFKA_PORT,
+    input_topic='prompt_request',
+    output_topic='prompt_response'
+)
