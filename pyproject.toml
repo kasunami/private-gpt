@@ -15,6 +15,7 @@ watchdog = "^4.0.1"
 transformers = "^4.42.3"
 docx2txt = "^0.8"
 cryptography = "^3.1"
+kafka = "3.8.0"
 # LlamaIndex core libs
 llama-index-core = "^0.10.52"
 llama-index-readers-file = "^0.1.27"
