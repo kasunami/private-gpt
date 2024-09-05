@@ -93,9 +93,6 @@ class KafkaProcessor:
 
     def consume_messages(self):
         for msg in self.consumer:
-            if msg.error():
-                print(f"Consumer error: {msg.error()}")
-                continue
             print(f"Received message: {msg.value.decode('utf-8')}")
 
             completion_response = process_message(msg.value.decode('utf-8'))
