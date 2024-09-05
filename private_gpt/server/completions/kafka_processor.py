@@ -1,5 +1,5 @@
 # kafka_processor.py
-from confluent_kafka import Consumer, Producer
+from kafka import KafkaConsumer, KafkaProducer
 from pydantic import BaseModel, ValidationError
 from typing import Optional, List
 from private_gpt.open_ai.extensions.context_filter import ContextFilter
@@ -70,45 +70,36 @@ def process_message(message_value: str) -> str:  # Return type is now str (JSON 
             "location": "process_message - Parsing input message"
         })
 
-def consume_messages(consumer: Consumer, producer: Producer, output_topic: str):
-    while True:
-        msg = consumer.poll(1.0)
-        if msg is None:
-            continue
+def consume_messages(consumer: KafkaConsumer, producer: KafkaProducer, output_topic: str):
+    for msg in consumer:  # Iterate directly over the consumer
         if msg.error():
             print(f"Consumer error: {msg.error()}")
             continue
-        print(f"Received message: {msg.value().decode('utf-8')}")
+        print(f"Received message: {msg.value.decode('utf-8')}")
 
-
-        completion_response = process_message(msg.value().decode('utf-8'))
-        producer.produce(output_topic, completion_response)  # Send the JSON string directly
+        completion_response = process_message(msg.value.decode('utf-8'))
+        producer.send(output_topic, value=completion_response.encode('utf-8'))  # Encode the JSON string
         producer.flush()
-
-        consumer.commit(asynchronous=False)
-
 
 def main():
     bootstrap_servers = f"{KAFKA_ADDRESS}:{KAFKA_PORT}"
 
     consumer_config = {
-        'bootstrap.servers': bootstrap_servers,
-        'group.id': 'completions-group',
-        'auto.offset.reset': 'earliest',
-        'enable.auto.commit': False
+        'bootstrap_servers': bootstrap_servers,
+        'group_id': 'completions-group',
+        'auto_offset_reset': 'earliest',
+        'enable_auto_commit': False  # Adjust if needed
     }
 
     producer_config = {
-        'bootstrap.servers': bootstrap_servers
+        'bootstrap_servers': bootstrap_servers
     }
 
-    input_topic = 'prompt_request'  # Updated input topic
-    output_topic = 'prompt_response'  # Updated output topic
+    input_topic = 'prompt_request'
+    output_topic = 'prompt_response'
 
-    consumer = Consumer(consumer_config)
-    producer = Producer(producer_config)
-
-    consumer.subscribe([input_topic])
+    consumer = KafkaConsumer(input_topic, **consumer_config)
+    producer = KafkaProducer(**producer_config)
 
     try:
         consume_messages(consumer, producer, output_topic)
