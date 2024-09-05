@@ -89,4 +89,5 @@ def prompt_completion(
         include_sources=body.include_sources,
         context_filter=body.context_filter,
     )
+    print(f"!!REQUEST!! :: {request}")
     return chat_completion(request, chat_body)

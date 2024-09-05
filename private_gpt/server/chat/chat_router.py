@@ -100,6 +100,8 @@ def chat_completion(request_or_service: Union[Request, ChatService], body: ChatB
     ```
     """
 
+    print(f"!!CHAT_SERVICE!! :: {service}")
+
     all_messages = [
         ChatMessage(content=m.content, role=MessageRole(m.role)) for m in body.messages
     ]
