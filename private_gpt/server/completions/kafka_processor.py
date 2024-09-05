@@ -9,6 +9,13 @@ from private_gpt.open_ai.openai_models import (
 )
 from private_gpt.server.chat.chat_router import ChatBody, chat_completion
 
+from private_gpt.server.chat.chat_service import ChatService
+from private_gpt.components.llm.llm_component import LLMComponent
+from private_gpt.components.vector_store.vector_store_component import VectorStoreComponent
+from private_gpt.components.embedding.embedding_component import EmbeddingComponent
+from private_gpt.components.node_store.node_store_component import NodeStoreComponent
+from private_gpt.settings.settings import Settings
+
 import json
 
 # Kafka configuration variables
@@ -56,7 +63,7 @@ def process_message(message_value: str) -> str:  # Return type is now str (JSON 
             context_filter=body.context_filter,
 
         )
-        completion_response = chat_completion(request=None, chat_body=chat_body)
+        completion_response = chat_completion(None, chat_body)
         # Wrap the successful response in a JSON structure with status
         return json.dumps({
             "status": "success",
@@ -92,6 +99,35 @@ class KafkaProcessor:
         self.producer = KafkaProducer(**self.producer_config)
 
     def consume_messages(self):
+
+        # 1. Obtain Dependencies (Adjust based on your project)
+        try:
+            settings = Settings()  # Load settings
+            llm_component = LLMComponent(settings)
+            vector_store_component = VectorStoreComponent(settings)
+            embedding_component = EmbeddingComponent(settings)
+            node_store_component = NodeStoreComponent(settings)
+        except Exception as e:
+            # Handle potential errors during component initialization
+            print(f"Error initializing components: {e}")
+            # ... (Send error message to Kafka or handle appropriately)
+            return
+
+        # 2. Create ChatService Instance
+        try:
+            chat_service = ChatService(
+                settings=settings,
+                llm_component=llm_component,
+                vector_store_component=vector_store_component,
+                embedding_component=embedding_component,
+                node_store_component=node_store_component
+            )
+        except Exception as e:
+            # Handle potential errors during ChatService creation
+            print(f"Error creating ChatService: {e}")
+            # ... (Send error message to Kafka or handle appropriately)
+            return
+
         for msg in self.consumer:
             print(f"Received message: {msg.value.decode('utf-8')}")
 
