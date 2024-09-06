@@ -100,14 +100,6 @@ def chat_completion(request_or_service: Union[Request, ChatService], body: ChatB
     ```
     """
 
-    print(f"!!CHAT_SERVICE!! :: {service}")
-    # Print the service object's settings in a more detailed way
-    print("ChatService settings:")
-    for attr_name in dir(service.settings):
-        if not attr_name.startswith('_'):
-            attr_value = getattr(service.settings, attr_name)
-            print(f"  - {attr_name}: {attr_value}")
-
     all_messages = [
         ChatMessage(content=m.content, role=MessageRole(m.role)) for m in body.messages
     ]
