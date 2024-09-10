@@ -4,19 +4,13 @@ from pydantic import BaseModel, ValidationError
 from typing import Optional, List
 from private_gpt.di import global_injector
 from private_gpt.open_ai.extensions.context_filter import ContextFilter
-from private_gpt.open_ai.openai_models import (
-    OpenAICompletion,
-    OpenAIMessage,
-)
+from private_gpt.open_ai.openai_models import OpenAIMessage
 
 from private_gpt.server.chat.chat_router import ChatBody, chat_completion
 from private_gpt.server.chat.chat_service import ChatService
+from private_gpt.settings.settings import settings
 
 import json
-
-# Kafka configuration variables
-KAFKA_ADDRESS = '192.168.88.176'
-KAFKA_PORT = 9092  # Updated port to match your Kafka setup
 
 class CompletionsBody(BaseModel):
     prompt: str
@@ -99,10 +93,15 @@ class KafkaProcessor:
 
         for msg in self.consumer:
             print(f"Received message: {msg.value.decode('utf-8')}")
+            # Pause and wait for current message to process
+            self.consumer.pause()
 
             completion_response = process_message(msg.value.decode('utf-8'))
             self.producer.send(self.output_topic, value=completion_response.encode('utf-8'))
             self.producer.flush()
+
+            # Resume fetching messages
+            self.consumer.resume()
 
     def start(self):
         try:
@@ -114,8 +113,8 @@ class KafkaProcessor:
 
 # Create a default instance of KafkaProcessor
 kafka_processor = KafkaProcessor(
-    kafka_address=KAFKA_ADDRESS,
-    kafka_port=KAFKA_PORT,
+    kafka_address=settings().kafka.address,
+    kafka_port=settings().kafka.port,
     input_topic='prompt_request',
     output_topic='prompt_response'
 )

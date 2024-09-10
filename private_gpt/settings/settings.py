@@ -1,3 +1,4 @@
+import os
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -575,9 +576,24 @@ class MilvusSettings(BaseModel):
         True, description="Overwrite the previous collection schema if it exists."
     )
 
+class KafkaSettings(BaseModel):
+    address: str = Field(description="Address of the Kafka broker")
+    port: int = Field(description="Port of the Kafka broker")
+
+    # Add environment variable checks and overrides
+    def __init__(self, **data: Any):
+        super().__init__(**data)
+
+        # Check for environment variables and override if present
+        if "KAFKA_ADDRESS" in os.environ:
+            self.address = os.environ["KAFKA_ADDRESS"]
+
+        if "KAFKA_PORT" in os.environ:
+            self.port = int(os.environ["KAFKA_PORT"])
 
 class Settings(BaseModel):
     server: ServerSettings
+    kafka: KafkaSettings
     data: DataSettings
     ui: UISettings
     llm: LLMSettings
