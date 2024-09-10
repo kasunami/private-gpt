@@ -105,11 +105,11 @@ class KafkaProcessor:
             if not messages:
                 continue
             for msg in messages:
-                print(f"Received message: {msg.value.decode('utf-8')}")
+                print(f"Received message: {msg.partition.decode('utf-8')}")
                 # Pause and wait for current message to process
                 self.consumer.pause()
 
-                completion_response = process_message(msg.value.decode('utf-8'))
+                completion_response = process_message(msg.partition.decode('utf-8'))
                 self.producer.send(self.output_topic, value=completion_response.encode('utf-8'))
                 self.consumer.commit()
                 self.producer.flush()
