@@ -16,6 +16,10 @@ server:
     # If the auth is enabled, this value must be set in the "Authorization" header of the request.
     secret: "Basic c2VjcmV0OmtleQ=="
 
+kafka:
+  address: 'localhost'
+  port: 9092
+
 data:
   local_ingestion:
     enabled: ${LOCAL_INGESTION_ENABLED:false}
