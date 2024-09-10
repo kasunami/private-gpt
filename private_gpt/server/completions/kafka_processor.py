@@ -14,7 +14,7 @@ import json
 
 class CompletionsBody(BaseModel):
     prompt: str
-    system_prompt: Optional[str] = "Always format your response as a valid JSON object, even if the request doesn't explicitly ask for it."
+    system_prompt: Optional[str] = None
     use_context: bool = False
     context_filter: Optional[ContextFilter] = None
     include_sources: bool = True
@@ -42,7 +42,7 @@ def convert_body_to_messages(body: CompletionsBody) -> List[OpenAIMessage]:
     return messages
 
 
-def process_message(message_value: str) -> str:  # Return type is now str (JSON string)
+def process_message(message_value: str) -> str:
     try:
         body = CompletionsBody.parse_raw(message_value)
         chat_body = ChatBody(
@@ -55,11 +55,21 @@ def process_message(message_value: str) -> str:  # Return type is now str (JSON 
         )
         chat_service: ChatService = global_injector.get(ChatService)
         completion_response = chat_completion(chat_service, chat_body)
-        # Wrap the successful response in a JSON structure with status
+
+        content = completion_response.choices[0].message.content
+
+        try:
+            # Attempt to parse the content directly as JSON
+            data = json.loads(content)
+        except json.JSONDecodeError:
+            # If direct parsing fails, assume it's a string with escape sequences
+            data = json.loads(content.encode().decode('unicode_escape'))
+
         return json.dumps({
             "status": "success",
-            "data": completion_response.model_dump_json()  # Assuming model_dump_json returns a dict
+            "data": data
         })
+
     except ValidationError as e:
         # Return a JSON structure with error details and status
         return json.dumps({
@@ -90,14 +100,18 @@ class KafkaProcessor:
         self.producer = KafkaProducer(**self.producer_config)
 
     def consume_messages(self):
-
-        for msg in self.consumer:
+        while True:
+            messages = self.consumer.poll(1000, 1)
+            if not messages:
+                continue
+            msg = messages[0]
             print(f"Received message: {msg.value.decode('utf-8')}")
             # Pause and wait for current message to process
             self.consumer.pause()
 
             completion_response = process_message(msg.value.decode('utf-8'))
             self.producer.send(self.output_topic, value=completion_response.encode('utf-8'))
+            self.consumer.commit()
             self.producer.flush()
 
             # Resume fetching messages
