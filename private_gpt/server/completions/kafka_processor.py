@@ -14,7 +14,7 @@ import json
 
 class CompletionsBody(BaseModel):
     prompt: str
-    system_prompt: Optional[str] = "Always format your response as a valid JSON object, even if the request doesn't explicitly ask for it."
+    system_prompt: Optional[str] = None
     use_context: bool = False
     context_filter: Optional[ContextFilter] = None
     include_sources: bool = True
@@ -58,7 +58,7 @@ def process_message(message_value: str) -> str:  # Return type is now str (JSON 
         # Wrap the successful response in a JSON structure with status
         return json.dumps({
             "status": "success",
-            "data": completion_response.model_dump_json()  # Assuming model_dump_json returns a dict
+            "data": completion_response.choices[0].message.content
         })
     except ValidationError as e:
         # Return a JSON structure with error details and status
