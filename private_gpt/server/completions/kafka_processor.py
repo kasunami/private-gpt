@@ -73,16 +73,26 @@ async def process_message(self, message_value: str) -> bool:
         # Iterate over the lines (chunks) in the StreamingResponse using async for
         async for line in streaming_response.body_iterator:
             logger.info("Processing chunk from StreamingResponse.")
-            # Assuming each line is a JSON string representing a chunk
-            chunk = json.loads(line)
-            content = chunk.choices[0].delta.get("content")
-            if content:
-                logger.debug(f"Sending content to Kafka: {content}")
-                self.producer.send(self.output_topic, value=content.encode('utf-8'))
-                self.producer.flush()
+            logger.debug(f"Raw line: {line}")
+
+            try:
+                # Assuming each line is a JSON string representing a chunk
+                chunk = json.loads(line)
+                logger.debug(f"Parsed chunk: {chunk}")
+
+                content = chunk.get("choices", [{}])[0].get("delta", {}).get("content")
+                if content:
+                    logger.debug(f"Sending content to Kafka: {content}")
+                    self.producer.send(self.output_topic, value=content.encode('utf-8'))
+                    self.producer.flush()
+
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON decode error: {e} - Raw line: {line}")
+
+            except KeyError as e:
+                logger.error(f"Key error: {e} - Chunk: {chunk}")
 
         logger.info("Finished processing message successfully.")
-        return True
 
     except ValidationError as e:
         logger.error(f"Validation error processing message: {e}")
