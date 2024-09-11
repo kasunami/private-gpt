@@ -82,12 +82,9 @@ async def process_message(self, message_value: str) -> bool:
             try:
                 # Assuming each line is a JSON string representing a chunk
                 chunk = json.loads(line)
-                logger.info(f"Parsed chunk: {chunk}")
-
-                content = chunk.get("choices", [{}])[0].get("delta", {}).get("content")
-                if content:
-                    logger.info(f"Sending content to Kafka: {content}")
-                    self.producer.send(self.output_topic, value=content.encode('utf-8'))
+                if chunk:
+                    logger.info(f"Sending content to Kafka: {chunk}")
+                    self.producer.send(self.output_topic, value=chunk.encode('utf-8'))
                     self.producer.flush()
 
             except json.JSONDecodeError as e:
