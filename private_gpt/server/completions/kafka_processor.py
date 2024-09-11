@@ -75,6 +75,10 @@ async def process_message(self, message_value: str) -> bool:
             logger.info("Processing chunk from StreamingResponse.")
             logger.debug(f"Raw line: {line}")
 
+            # Strip the 'data: ' prefix if it exists
+            if line.startswith("data: "):
+                line = line[len("data: "):]
+
             try:
                 # Assuming each line is a JSON string representing a chunk
                 chunk = json.loads(line)
