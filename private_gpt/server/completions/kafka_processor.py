@@ -103,29 +103,22 @@ class KafkaProcessor:
         self.producer = KafkaProducer(**self.producer_config)
 
     def consume_messages(self):
-        while True:
-            messages = self.consumer.poll(600000, 1)
-            if not messages:
-                continue
-
-            tp = list(messages.keys())[0]
-            msg = messages[tp][0]
-
-            print(f"Received message from partition {tp.partition}: {msg.value.decode('utf-8')}")
+        for msg in self.consumer:
+            print(f"Received message: {msg.value.decode('utf-8')}")
 
             # Pause fetching to process the current message
             self.consumer.pause()
 
-            # Pass 'self' to process_message
             success = process_message(self, msg.value.decode('utf-8'))
-
             if success:
-                # Commit and resume fetching only if processing was successful
+                # Commit if processing was successful
                 self.consumer.commit()
-                self.consumer.resume()
             else:
                 # Handle the failure case appropriately (e.g., log the error, retry, etc.)
                 print("Error processing message. Skipping commit and continuing...")
+
+            # Resume fetching messages
+            self.consumer.resume()
 
     def start(self):
         try:
