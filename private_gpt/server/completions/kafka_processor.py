@@ -14,7 +14,7 @@ from private_gpt.server.chat.chat_router import ChatBody, chat_completion
 from private_gpt.server.chat.chat_service import ChatService
 from private_gpt.settings.settings import settings
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 class CompletionsBody(BaseModel):
@@ -49,7 +49,7 @@ def convert_body_to_messages(body: CompletionsBody) -> List[OpenAIMessage]:
 
 async def process_message(self, message_value: str) -> bool:
     logger.info("Started processing message.")
-    logger.debug(f"Message content: {message_value}")
+    logger.info(f"Message content: {message_value}")
     try:
         body = CompletionsBody.model_validate_json(message_value)
         logger.info("Parsed CompletionsBody from message.")
@@ -73,7 +73,7 @@ async def process_message(self, message_value: str) -> bool:
         # Iterate over the lines (chunks) in the StreamingResponse using async for
         async for line in streaming_response.body_iterator:
             logger.info("Processing chunk from StreamingResponse.")
-            logger.debug(f"Raw line: {line}")
+            logger.info(f"Raw line: {line}")
 
             # Strip the 'data: ' prefix if it exists
             if line.startswith("data: "):
@@ -82,11 +82,11 @@ async def process_message(self, message_value: str) -> bool:
             try:
                 # Assuming each line is a JSON string representing a chunk
                 chunk = json.loads(line)
-                logger.debug(f"Parsed chunk: {chunk}")
+                logger.info(f"Parsed chunk: {chunk}")
 
                 content = chunk.get("choices", [{}])[0].get("delta", {}).get("content")
                 if content:
-                    logger.debug(f"Sending content to Kafka: {content}")
+                    logger.info(f"Sending content to Kafka: {content}")
                     self.producer.send(self.output_topic, value=content.encode('utf-8'))
                     self.producer.flush()
 
