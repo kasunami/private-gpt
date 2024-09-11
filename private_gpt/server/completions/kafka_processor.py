@@ -14,7 +14,7 @@ from private_gpt.server.chat.chat_router import ChatBody, chat_completion
 from private_gpt.server.chat.chat_service import ChatService
 from private_gpt.settings.settings import settings
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 class CompletionsBody(BaseModel):
