@@ -83,7 +83,7 @@ class KafkaProcessor:
         }
 
         self.producer_config = {
-            'bootstrap.servers': self.bootstrap_servers
+            'bootstrap_servers': self.bootstrap_servers
         }
 
         self.input_topic = input_topic
