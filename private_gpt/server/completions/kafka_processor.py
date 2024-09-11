@@ -56,11 +56,15 @@ def process_message(self, message_value: str) -> bool:
 
         chat_service: ChatService = global_injector.get(ChatService)
 
-        # Handle streaming responses and send each chunk immediately
-        for chunk in chat_completion(chat_service, chat_body):
-            content = chunk.choices[0].delta.content
-            if content is not None:
-                # Send the chunk to Kafka as it arrives
+        # Get the StreamingResponse from chat_completion
+        streaming_response = chat_completion(chat_service, chat_body)
+
+        # Iterate over the lines (chunks) in the StreamingResponse
+        async for line in streaming_response.body_iterator:
+            # Assuming each line is a JSON string representing a chunk
+            chunk = json.loads(line)
+            content = chunk.choices[0].delta.get("content")
+            if content:
                 self.producer.send(self.output_topic, value=content.encode('utf-8'))
                 self.producer.flush()
 
@@ -69,7 +73,7 @@ def process_message(self, message_value: str) -> bool:
     except ValidationError as e:
         # Log the error or handle it as needed
         print(f"Error processing message: {e}")
-        return False  # Indicate failure
+        return False
 
 class KafkaProcessor:
     def __init__(self, kafka_address, kafka_port, input_topic, output_topic):
