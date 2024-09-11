@@ -1,4 +1,5 @@
 # kafka_processor.py
+
 from kafka import KafkaConsumer, KafkaProducer
 from pydantic import BaseModel, ValidationError
 from typing import Optional, List
@@ -42,7 +43,7 @@ def convert_body_to_messages(body: CompletionsBody) -> List[OpenAIMessage]:
     return messages
 
 
-def process_message(message_value: str) -> str:
+def process_message(self, message_value: str) -> bool:
     try:
         body = CompletionsBody.parse_raw(message_value)
         chat_body = ChatBody(
@@ -51,63 +52,38 @@ def process_message(message_value: str) -> str:
             stream=body.stream,
             include_sources=body.include_sources,
             context_filter=body.context_filter,
-
         )
+
         chat_service: ChatService = global_injector.get(ChatService)
-        completion_response = chat_completion(chat_service, chat_body)
 
-        content = completion_response.choices[0].message.content
+        # Handle streaming responses and send each chunk immediately
+        for chunk in chat_completion(chat_service, chat_body):
+            content = chunk.choices[0].delta.content
+            if content is not None:
+                # Send the chunk to Kafka as it arrives
+                self.producer.send(self.output_topic, value=content.encode('utf-8'))
+                self.producer.flush()
 
-        # Print the content for debugging before processing
-        print("Content before JSON parsing:", content)
-
-        try:
-            # Attempt to parse the content directly as JSON
-            data = json.loads(content)
-        except json.JSONDecodeError as e:
-            # If direct parsing fails, provide more context in the error message
-            print(f"Error decoding JSON directly: {e}. Content: {content}")
-
-            # Attempt preprocessing and retry, handling potential errors
-            try:
-                data = json.loads(content.encode().decode('unicode_escape'))
-            except json.JSONDecodeError as e2:
-                # Log the error with additional context
-                print(f"Error decoding JSON after preprocessing: {e2}. Content: {content}")
-                # Return an error response with details
-                return json.dumps({
-                    "status": "error",
-                    "exception": "JSONDecodeError",
-                    "message": "Failed to parse completion response as JSON",
-                    "original_content": content  # Include the original content for further analysis
-                })
-
-        return json.dumps({
-            "status": "success",
-            "data": data
-        })
+        return True  # Indicate successful completion
 
     except ValidationError as e:
-        # Return a JSON structure with error details and status
-        return json.dumps({
-            "status": "error",
-            "exception": str(e),
-            "location": "process_message - Parsing input message"
-        })
+        # Log the error or handle it as needed
+        print(f"Error processing message: {e}")
+        return False  # Indicate failure
 
 class KafkaProcessor:
     def __init__(self, kafka_address, kafka_port, input_topic, output_topic):
         self.bootstrap_servers = f"{kafka_address}:{kafka_port}"
 
         self.consumer_config = {
-            'bootstrap_servers': self.bootstrap_servers,
+            'bootstrap.servers': self.bootstrap_servers,
             'group_id': 'completions-group',
             'auto_offset_reset': 'earliest',
             'enable_auto_commit': False  # Adjust if needed
         }
 
         self.producer_config = {
-            'bootstrap_servers': self.bootstrap_servers
+            'bootstrap.servers': self.bootstrap_servers
         }
 
         self.input_topic = input_topic
@@ -118,24 +94,28 @@ class KafkaProcessor:
 
     def consume_messages(self):
         while True:
-            messages = self.consumer.poll(1000, 1)
+            messages = self.consumer.poll(600000, 1)
             if not messages:
                 continue
-            # Since we're fetching one message at a time, there should be only one TopicPartition
+
             tp = list(messages.keys())[0]
-            msg = messages[tp][0]  # Get the single ConsumerRecord
+            msg = messages[tp][0]
 
             print(f"Received message from partition {tp.partition}: {msg.value.decode('utf-8')}")
-            # Pause and wait for current message to process
+
+            # Pause fetching to process the current message
             self.consumer.pause()
 
-            completion_response = process_message(msg.value.decode('utf-8'))
-            self.producer.send(self.output_topic, value=completion_response.encode('utf-8'))
-            self.consumer.commit()
-            self.producer.flush()
+            # Pass 'self' to process_message
+            success = process_message(self, msg.value.decode('utf-8'))
 
-            # Resume fetching messages
-            self.consumer.resume()
+            if success:
+                # Commit and resume fetching only if processing was successful
+                self.consumer.commit()
+                self.consumer.resume()
+            else:
+                # Handle the failure case appropriately (e.g., log the error, retry, etc.)
+                print("Error processing message. Skipping commit and continuing...")
 
     def start(self):
         try:
