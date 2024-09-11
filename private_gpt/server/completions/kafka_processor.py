@@ -12,6 +12,10 @@ from private_gpt.server.chat.chat_service import ChatService
 from private_gpt.settings.settings import settings
 
 import json
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 class CompletionsBody(BaseModel):
     prompt: str
@@ -44,41 +48,47 @@ def convert_body_to_messages(body: CompletionsBody) -> List[OpenAIMessage]:
 
 
 async def process_message(self, message_value: str) -> bool:
+    logger.info("Started processing message.")
+    logger.debug(f"Message content: {message_value}")
     try:
-        body = CompletionsBody.parse_raw(message_value)
+        body = CompletionsBody.model_validate_json(message_value)
+        logger.info("Parsed CompletionsBody from message.")
+
         chat_body = ChatBody(
             messages=convert_body_to_messages(body),
             use_context=body.use_context,
             stream=body.stream,
             include_sources=body.include_sources,
             context_filter=body.context_filter,
-
         )
+        logger.info("Created ChatBody for chat_completion.")
 
         chat_service: ChatService = global_injector.get(ChatService)
+        logger.info("Retrieved ChatService instance from global_injector.")
 
         # Get the StreamingResponse from chat_completion
         streaming_response = chat_completion(chat_service, chat_body)
+        logger.info("Received StreamingResponse from chat_completion.")
 
         # Iterate over the lines (chunks) in the StreamingResponse using async for
         async for line in streaming_response.body_iterator:
+            logger.info("Processing chunk from StreamingResponse.")
             # Assuming each line is a JSON string representing a chunk
             chunk = json.loads(line)
             content = chunk.choices[0].delta.get("content")
             if content:
+                logger.debug(f"Sending content to Kafka: {content}")
                 self.producer.send(self.output_topic, value=content.encode('utf-8'))
                 self.producer.flush()
 
+        logger.info("Finished processing message successfully.")
         return True
 
     except ValidationError as e:
-        # Log the error or handle it as needed
-        print(f"Error processing message: {e}")
+        logger.error(f"Validation error processing message: {e}")
         return False
-
-    except ValidationError as e:
-        # Log the error or handle it as needed
-        print(f"Error processing message: {e}")
+    except Exception as e:  # Catch any other unexpected exceptions
+        logger.error(f"Unexpected error processing message: {e}")
         return False
 
 class KafkaProcessor:
@@ -104,7 +114,7 @@ class KafkaProcessor:
 
     def consume_messages(self):
         for msg in self.consumer:
-            print(f"Received message: {msg.value.decode('utf-8')}")
+            logger.info(f"Received message from topic: {msg.topic}, partition: {msg.partition}, offset: {msg.offset}")
 
             # Pause fetching to process the current message
             self.consumer.pause()
@@ -115,7 +125,7 @@ class KafkaProcessor:
                 self.consumer.commit()
             else:
                 # Handle the failure case appropriately (e.g., log the error, retry, etc.)
-                print("Error processing message. Skipping commit and continuing...")
+                logger.info("Error processing message. Skipping commit and continuing...")
 
             # Resume fetching messages
             self.consumer.resume()
