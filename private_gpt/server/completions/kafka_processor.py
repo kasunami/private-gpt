@@ -1,18 +1,18 @@
 # kafka_processor.py
+import asyncio
+import json
+import logging
+from typing import Optional, List
 
 from kafka import KafkaConsumer, KafkaProducer
 from pydantic import BaseModel, ValidationError
-from typing import Optional, List
+
 from private_gpt.di import global_injector
 from private_gpt.open_ai.extensions.context_filter import ContextFilter
 from private_gpt.open_ai.openai_models import OpenAIMessage
-
 from private_gpt.server.chat.chat_router import ChatBody, chat_completion
 from private_gpt.server.chat.chat_service import ChatService
 from private_gpt.settings.settings import settings
-
-import json
-import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -119,7 +119,14 @@ class KafkaProcessor:
             # Pause fetching to process the current message
             self.consumer.pause()
 
-            success = process_message(self, msg.value.decode('utf-8'))
+            # Create an event loop to run the async function
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                success = loop.run_until_complete(process_message(self, msg.value.decode('utf-8')))
+            finally:
+                loop.close()
+
             if success:
                 # Commit if processing was successful
                 self.consumer.commit()
@@ -137,6 +144,7 @@ class KafkaProcessor:
             pass
         finally:
             self.consumer.close()
+
 
 # Create a default instance of KafkaProcessor
 kafka_processor = KafkaProcessor(
