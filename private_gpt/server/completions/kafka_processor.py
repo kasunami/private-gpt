@@ -76,7 +76,7 @@ class KafkaProcessor:
         self.bootstrap_servers = f"{kafka_address}:{kafka_port}"
 
         self.consumer_config = {
-            'bootstrap.servers': self.bootstrap_servers,
+            'bootstrap_servers': self.bootstrap_servers,
             'group_id': 'completions-group',
             'auto_offset_reset': 'earliest',
             'enable_auto_commit': False  # Adjust if needed
