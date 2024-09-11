@@ -58,12 +58,29 @@ def process_message(message_value: str) -> str:
 
         content = completion_response.choices[0].message.content
 
+        # Print the content for debugging before processing
+        print("Content before JSON parsing:", content)
+
         try:
             # Attempt to parse the content directly as JSON
             data = json.loads(content)
-        except json.JSONDecodeError:
-            # If direct parsing fails, assume it's a string with escape sequences
-            data = json.loads(content.encode().decode('unicode_escape'))
+        except json.JSONDecodeError as e:
+            # If direct parsing fails, provide more context in the error message
+            print(f"Error decoding JSON directly: {e}. Content: {content}")
+
+            # Attempt preprocessing and retry, handling potential errors
+            try:
+                data = json.loads(content.encode().decode('unicode_escape'))
+            except json.JSONDecodeError as e2:
+                # Log the error with additional context
+                print(f"Error decoding JSON after preprocessing: {e2}. Content: {content}")
+                # Return an error response with details
+                return json.dumps({
+                    "status": "error",
+                    "exception": "JSONDecodeError",
+                    "message": "Failed to parse completion response as JSON",
+                    "original_content": content  # Include the original content for further analysis
+                })
 
         return json.dumps({
             "status": "success",
