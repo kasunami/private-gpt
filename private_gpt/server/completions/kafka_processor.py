@@ -104,18 +104,21 @@ class KafkaProcessor:
             messages = self.consumer.poll(1000, 1)
             if not messages:
                 continue
-            for msg in messages:
-                print(f"Received message: {msg.partition.decode('utf-8')}")
-                # Pause and wait for current message to process
-                self.consumer.pause()
+            # Since we're fetching one message at a time, there should be only one TopicPartition
+            tp = list(messages.keys())[0]
+            msg = messages[tp][0]  # Get the single ConsumerRecord
 
-                completion_response = process_message(msg.partition.decode('utf-8'))
-                self.producer.send(self.output_topic, value=completion_response.encode('utf-8'))
-                self.consumer.commit()
-                self.producer.flush()
+            print(f"Received message from partition {tp.partition}: {msg.value.decode('utf-8')}")
+            # Pause and wait for current message to process
+            self.consumer.pause()
 
-                # Resume fetching messages
-                self.consumer.resume()
+            completion_response = process_message(msg.partition.decode('utf-8'))
+            self.producer.send(self.output_topic, value=completion_response.encode('utf-8'))
+            self.consumer.commit()
+            self.producer.flush()
+
+            # Resume fetching messages
+            self.consumer.resume()
 
     def start(self):
         try:
