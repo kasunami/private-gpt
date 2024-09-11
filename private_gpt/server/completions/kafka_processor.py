@@ -43,7 +43,7 @@ def convert_body_to_messages(body: CompletionsBody) -> List[OpenAIMessage]:
     return messages
 
 
-def process_message(self, message_value: str) -> bool:
+async def process_message(self, message_value: str) -> bool:
     try:
         body = CompletionsBody.parse_raw(message_value)
         chat_body = ChatBody(
@@ -52,6 +52,7 @@ def process_message(self, message_value: str) -> bool:
             stream=body.stream,
             include_sources=body.include_sources,
             context_filter=body.context_filter,
+
         )
 
         chat_service: ChatService = global_injector.get(ChatService)
@@ -59,7 +60,7 @@ def process_message(self, message_value: str) -> bool:
         # Get the StreamingResponse from chat_completion
         streaming_response = chat_completion(chat_service, chat_body)
 
-        # Iterate over the lines (chunks) in the StreamingResponse
+        # Iterate over the lines (chunks) in the StreamingResponse using async for
         async for line in streaming_response.body_iterator:
             # Assuming each line is a JSON string representing a chunk
             chunk = json.loads(line)
@@ -68,7 +69,12 @@ def process_message(self, message_value: str) -> bool:
                 self.producer.send(self.output_topic, value=content.encode('utf-8'))
                 self.producer.flush()
 
-        return True  # Indicate successful completion
+        return True
+
+    except ValidationError as e:
+        # Log the error or handle it as needed
+        print(f"Error processing message: {e}")
+        return False
 
     except ValidationError as e:
         # Log the error or handle it as needed
