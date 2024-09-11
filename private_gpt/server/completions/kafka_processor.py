@@ -73,7 +73,6 @@ async def process_message(self, message_value: str) -> bool:
         # Iterate over the lines (chunks) in the StreamingResponse using async for
         async for line in streaming_response.body_iterator:
             logger.info("Processing chunk from StreamingResponse.")
-            logger.info(f"Raw line: {line}")
 
             # Strip the 'data: ' prefix if it exists
             if line.startswith("data: "):
@@ -81,10 +80,16 @@ async def process_message(self, message_value: str) -> bool:
 
             try:
                 # Assuming each line is a JSON string representing a chunk
-                if line:
-                    logger.info(f"Sending content to Kafka: {line}")
-                    self.producer.send(self.output_topic, value=line.encode('utf-8'))
-                    self.producer.flush()
+                chunk_data = json.loads(line)  # Parse the line as JSON
+
+                # Check for finish_reason
+                if chunk_data.get("choices") and chunk_data["choices"][0].get("finish_reason") == "stop":
+                    logger.info("Received stop signal. Ending stream processing.")
+                    break  # Exit the loop if finish_reason is "stop"
+
+                logger.info(f"Sending content to Kafka: {line}")
+                self.producer.send(self.output_topic, value=line.encode('utf-8'))
+                self.producer.flush()
 
             except json.JSONDecodeError as e:
                 logger.error(f"JSON decode error: {e} - Raw line: {line}")
