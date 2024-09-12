@@ -72,8 +72,6 @@ async def process_message(self, message_value: str) -> bool:
 
         # Iterate over the lines (chunks) in the StreamingResponse using async for
         async for line in streaming_response.body_iterator:
-            logger.info("Processing chunk from StreamingResponse.")
-
             # Strip the 'data: ' prefix if it exists
             if line.startswith("data: "):
                 line = line[len("data: "):]
@@ -85,6 +83,7 @@ async def process_message(self, message_value: str) -> bool:
 
                 # Check for finish_reason (any non-null value)
                 chunk_data = json.loads(line)
+                logger.info(f"Finish Reason: {chunk_data['choices'][0].get('finish_reason')}")
                 if chunk_data.get("choices") and chunk_data["choices"][0].get("finish_reason"):
                     logger.info("Received finish signal. Ending stream processing.")
                     break
