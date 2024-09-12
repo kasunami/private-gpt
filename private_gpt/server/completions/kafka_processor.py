@@ -82,11 +82,11 @@ async def process_message(self, message_value: str) -> bool:
                 self.producer.flush()
 
                 # Check for finish_reason (any non-null value)
-                chunk_data = json.loads(line)
-                logger.info(f"Finish Reason: {chunk_data['choices'][0].get('finish_reason')}")
-                if chunk_data.get("choices") and chunk_data["choices"][0].get("finish_reason"):
-                    logger.info("Received finish signal. Ending stream processing.")
-                    break
+                # chunk_data = json.loads(line)
+                # logger.info(f"Finish Reason: {line['choices'][0].get('finish_reason')}")
+                # if chunk_data.get("choices") and chunk_data["choices"][0].get("finish_reason"):
+                #     logger.info("Received finish signal. Ending stream processing.")
+                #     break
 
             except json.JSONDecodeError as e:
                 logger.error(f"JSON decode error: {e} - Raw line: {line}")
