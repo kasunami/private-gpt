@@ -2,6 +2,7 @@
 import asyncio
 import json
 import logging
+import time
 from typing import Optional, List
 
 from kafka import KafkaConsumer, KafkaProducer
@@ -117,6 +118,15 @@ class KafkaProcessor:
         self.consumer = KafkaConsumer(self.input_topic, **self.consumer_config)
         self.producer = KafkaProducer(**self.producer_config)
 
+    def initialize_kafka(self):
+        try:
+            self.consumer = KafkaConsumer(self.input_topic, **self.consumer_config)
+            self.producer = KafkaProducer(**self.producer_config)
+            logger.info("Connected to Kafka broker successfully.")
+        except Exception as e:
+            logger.error(f"Failed to connect to Kafka broker: {e}")
+            raise
+
     def consume_messages(self):
         for msg in self.consumer:
             logger.info(f"Received message from topic: {msg.topic}, partition: {msg.partition}, offset: {msg.offset}")
@@ -146,12 +156,22 @@ class KafkaProcessor:
             self.consumer.resume()
 
     def start(self):
-        try:
-            self.consume_messages()
-        except KeyboardInterrupt:
-            pass
-        finally:
-            self.consumer.close()
+        while True:
+            try:
+                self.initialize_kafka()
+                self.consume_messages()
+            except KeyboardInterrupt:
+                logger.info("KafkaProcessor interrupted by user.")
+                break
+            except Exception as e:
+                logger.error(f"Exception in KafkaProcessor: {e}")
+                logger.info("Retrying connection in 30 seconds...")
+                time.sleep(30)
+            finally:
+                try:
+                    self.consumer.close()
+                except Exception as e:
+                    logger.error(f"Error closing Kafka consumer: {e}")
 
 
 # Create a default instance of KafkaProcessor
@@ -161,3 +181,4 @@ kafka_processor = KafkaProcessor(
     input_topic='prompt_request',
     output_topic='prompt_response'
 )
+kafka_processor.start()
