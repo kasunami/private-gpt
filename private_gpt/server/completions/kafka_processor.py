@@ -78,7 +78,6 @@ async def process_message(self, message_value: str) -> bool:
                 line = line[len("data: "):]
 
             try:
-                logger.info(f"Sending content to Kafka: {line}")
                 self.producer.send(self.output_topic, value=line.encode('utf-8'))
                 self.producer.flush()
 
@@ -96,6 +95,7 @@ async def process_message(self, message_value: str) -> bool:
     except Exception as e:  # Catch any other unexpected exceptions
         logger.error(f"Unexpected error processing message: {e}")
         return False
+    return True
 
 class KafkaProcessor:
     def __init__(self, kafka_address, kafka_port, input_topic, output_topic):
@@ -138,12 +138,10 @@ class KafkaProcessor:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
-                success = loop.run_until_complete(process_message(self, msg.value.decode('utf-8')))
+                success = asyncio.run(process_message(self, msg.value.decode('utf-8')))
             except Exception as e:
                 logger.error(f"Error processing message: {e}")
                 success = False
-            finally:
-                loop.close()
 
             if success:
                 # Commit if processing was successful
