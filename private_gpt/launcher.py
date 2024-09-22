@@ -22,7 +22,7 @@ from private_gpt.server.recipes.summarize.summarize_router import summarize_rout
 from private_gpt.settings.settings import Settings
 
 logger = logging.getLogger(__name__)
-
+logger.setLevel(logging.DEBUG)
 
 def create_app(root_injector: Injector) -> FastAPI:
 
@@ -39,10 +39,6 @@ def create_app(root_injector: Injector) -> FastAPI:
     app.include_router(summarize_router)
     app.include_router(embeddings_router)
     app.include_router(health_router)
-
-    # Start the Kafka consumer in a separate thread
-    kafka_thread = threading.Thread(target=kafka_processor.start, daemon=True)
-    kafka_thread.start()
 
     # Add LlamaIndex simple observability
     global_handler = create_global_handler("simple")
@@ -72,5 +68,10 @@ def create_app(root_injector: Injector) -> FastAPI:
 
         ui = root_injector.get(PrivateGptUi)
         ui.mount_in_app(app, settings.ui.path)
+
+    # Start the Kafka consumer in a separate thread
+    if settings.kafka.enabled:
+        kafka_thread = threading.Thread(target=kafka_processor.start, daemon=True)
+        kafka_thread.start()
 
     return app

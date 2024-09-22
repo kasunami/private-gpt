@@ -577,6 +577,7 @@ class MilvusSettings(BaseModel):
     )
 
 class KafkaSettings(BaseModel):
+    enabled: bool
     address: str = Field(description="Address of the Kafka broker")
     port: int = Field(description="Port of the Kafka broker")
 

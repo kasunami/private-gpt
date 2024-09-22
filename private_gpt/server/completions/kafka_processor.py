@@ -2,6 +2,7 @@
 import asyncio
 import json
 import logging
+import inspect
 import time
 from typing import Optional, List
 
@@ -115,8 +116,8 @@ class KafkaProcessor:
         self.input_topic = input_topic
         self.output_topic = output_topic
 
-        self.consumer = KafkaConsumer(self.input_topic, **self.consumer_config)
-        self.producer = KafkaProducer(**self.producer_config)
+        self.consumer = None
+        self.producer = None
 
     def initialize_kafka(self):
         try:
@@ -154,6 +155,15 @@ class KafkaProcessor:
             self.consumer.resume()
 
     def start(self):
+        # Get the caller's frame
+        caller_frame = inspect.stack()[1]
+
+        # Extract caller information
+        module_name = caller_frame.filename
+        function_name = caller_frame.function
+        line_number = caller_frame.lineno
+
+        logger.debug(f"Called from {module_name}:{function_name}:{line_number}")
         while True:
             try:
                 self.initialize_kafka()
