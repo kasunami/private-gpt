@@ -22,7 +22,6 @@ from private_gpt.server.recipes.summarize.summarize_router import summarize_rout
 from private_gpt.settings.settings import Settings
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 def create_app(root_injector: Injector) -> FastAPI:
 

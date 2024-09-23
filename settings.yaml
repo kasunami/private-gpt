@@ -17,7 +17,7 @@ server:
     secret: "Basic c2VjcmV0OmtleQ=="
 
 kafka:
-  enabled: false
+  enabled: true
   address: 'localhost'
   port: 9092
 

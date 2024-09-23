@@ -163,7 +163,8 @@ class KafkaProcessor:
         function_name = caller_frame.function
         line_number = caller_frame.lineno
 
-        logger.debug(f"Called from {module_name}:{function_name}:{line_number}")
+        logger.info(f"Called from {module_name}:{function_name}:{line_number}")
+
         while True:
             try:
                 self.initialize_kafka()
@@ -189,4 +190,3 @@ kafka_processor = KafkaProcessor(
     input_topic='prompt_request',
     output_topic='prompt_response'
 )
-kafka_processor.start()
