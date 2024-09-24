@@ -5,9 +5,9 @@ server:
 llm:
   mode: llamacpp
   # Should be matching the selected model
-  max_new_tokens: 512
-  context_window: 3900
-  tokenizer: lmstudio-community/Meta-Llama-3.1-70B-Instruct-GGUF
+  max_new_tokens: 1024
+  context_window: 30000
+#  tokenizer: lmstudio-community/Meta-Llama-3.1-70B-Instruct-GGUF
   prompt_style: "llama3"
 
 llamacpp:
